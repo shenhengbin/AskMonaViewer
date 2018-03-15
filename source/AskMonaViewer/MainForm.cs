@@ -23,6 +23,7 @@ namespace AskMonaViewer
         private int mWheelDelta = 0;
         private bool mIsTopicListUpdating = false;
         private string mHtmlHeader = "";
+        private string mAppDataFolder = "";
         private bool mIsTabClosing = false;
         private bool mIsDocumentLoading = false;
         private const string mVersionString = "2.0.0";
@@ -44,6 +45,9 @@ namespace AskMonaViewer
         public MainForm()
         {
             InitializeComponent();
+            mAppDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\AskMonaViewer\\";
+            if (!Directory.Exists(mAppDataFolder))
+                Directory.CreateDirectory(mAppDataFolder);
             mListViewItemSorter = new ListViewItemComparer();
             mListViewItemSorter.ColumnModes = new ListViewItemComparer.ComparerMode[]
             {
@@ -546,12 +550,12 @@ namespace AskMonaViewer
 
         private void LoadSettings()
         {
-            if (File.Exists("AskMonaViewer.xml"))
+            if (File.Exists(mAppDataFolder + "AskMonaViewer.xml"))
             {
                 try
                 {
                     var xs = new XmlSerializer(typeof(ApplicationSettings));
-                    using (var sr = new StreamReader("AskMonaViewer.xml", new UTF8Encoding(false)))
+                    using (var sr = new StreamReader(mAppDataFolder + "AskMonaViewer.xml", new UTF8Encoding(false)))
                         mSettings = xs.Deserialize(sr) as ApplicationSettings;
 
                     this.WindowState = mSettings.MainFormSettings.WindowState;
@@ -569,17 +573,17 @@ namespace AskMonaViewer
                 catch { }
             }
 
-            if (File.Exists("ResponseCache.xml"))
+            if (File.Exists(mAppDataFolder + "ResponseCache.xml"))
             {
                 var xs = new XmlSerializer(typeof(List<ResponseCache>));
-                using (var sr = new StreamReader("ResponseCache.xml", new UTF8Encoding(false)))
+                using (var sr = new StreamReader(mAppDataFolder + "ResponseCache.xml", new UTF8Encoding(false)))
                     mResponseCacheList = xs.Deserialize(sr) as List<ResponseCache>;
             }
 
-            if (File.Exists("ImgurImageList.xml"))
+            if (File.Exists(mAppDataFolder + "ImgurImageList.xml"))
             {
                 var xs = new XmlSerializer(typeof(List<ImgurImage>));
-                using (var sr = new StreamReader("ImgurImageList.xml", new UTF8Encoding(false)))
+                using (var sr = new StreamReader(mAppDataFolder + "ImgurImageList.xml", new UTF8Encoding(false)))
                     mImgurImageList = xs.Deserialize(sr) as List<ImgurImage>;
             }
         }
@@ -611,15 +615,15 @@ namespace AskMonaViewer
             }
 
             var xs = new XmlSerializer(typeof(ApplicationSettings));
-            using (var sw = new StreamWriter("AskMonaViewer.xml", false, new UTF8Encoding(false)))
+            using (var sw = new StreamWriter(mAppDataFolder + "AskMonaViewer.xml", false, new UTF8Encoding(false)))
                 xs.Serialize(sw, mSettings);
 
             xs = new XmlSerializer(typeof(List<ResponseCache>));
-            using (var sw = new StreamWriter("ResponseCache.xml", false, new UTF8Encoding(false)))
+            using (var sw = new StreamWriter(mAppDataFolder + "ResponseCache.xml", false, new UTF8Encoding(false)))
                 xs.Serialize(sw, mResponseCacheList);
 
             xs = new XmlSerializer(typeof(List<ImgurImage>));
-            using (var sw = new StreamWriter("ImgurImageList.xml", false, new UTF8Encoding(false)))
+            using (var sw = new StreamWriter(mAppDataFolder + "ImgurImageList.xml", false, new UTF8Encoding(false)))
                 xs.Serialize(sw, mImgurImageList);
         }
 
