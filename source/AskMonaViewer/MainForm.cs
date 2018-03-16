@@ -480,12 +480,12 @@ namespace AskMonaViewer
 
         public DialogSettings LoadViewMessageDialogSettings()
         {
-            return mSettings.ViewMessageDialogSettings;
+            return mSettings.ViewMessagesDialogSettings;
         }
 
         public void SaveViewMessageDialogSettings(DialogSettings settings)
         {
-            mSettings.ViewMessageDialogSettings = settings;
+            mSettings.ViewMessagesDialogSettings = settings;
         }
 
         private async Task<bool> UpdateCurrenciesRate()
@@ -963,10 +963,10 @@ namespace AskMonaViewer
 
         private void toolStripButton11_Click(object sender, EventArgs e)
         {
-            var viewTransactionDialog = new ViewTransactionDialog(this, mAskMonaApi);
-            viewTransactionDialog.LoadSettings(mSettings.ViewTransactionDialogSettings);
+            var viewTransactionDialog = new ViewTransactionsDialog(this, mAskMonaApi);
+            viewTransactionDialog.LoadSettings(mSettings.ViewTransactionsDialogSettings);
             viewTransactionDialog.ShowDialog();
-            mSettings.ViewTransactionDialogSettings = viewTransactionDialog.SaveSettings();
+            mSettings.ViewTransactionsDialogSettings = viewTransactionDialog.SaveSettings();
         }
 
         private void toolStripButton12_Click(object sender, EventArgs e)
