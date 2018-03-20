@@ -21,27 +21,61 @@ namespace AskMonaViewer.Dialogs
         private ResponseList mResponseList;
         private bool mIsScattering = false;
 
-        public ScatterMonaDialog(MainForm parent, Options options, AskMonaApi api, Topic topic, List<int> ngUsers)
+        public ScatterMonaDialog(MainForm parent, Options options, AskMonaApi api, ResponseList responseList, List<int> ngUsers)
         {
             InitializeComponent();
             mParent = parent;
             mOptions = options;
             mApi = api;
-            mTopic = topic;
+            mResponseList = responseList;
+            mTopic = responseList.Topic;
             mNGUsers = ngUsers;
             button5.Text = "+ " + Common.Digits(options.FirstButtonMona) + " MONA";
             button3.Text = "+ " + Common.Digits(options.SecondButtonMona) + " MONA";
             button4.Text = "+ " + Common.Digits(options.ThirdButtonMona) + " MONA";
             button6.Text = "+ " + Common.Digits(options.ForthButtonMona) + " MONA";
-            checkBox4.Enabled = topic.ShowHost != 0;
+            checkBox4.Enabled = mTopic.ShowHost != 0;
             checkBox1.Checked = options.AlwaysSage;
             checkBox2.Checked = !options.AlwaysNonAnonymous;
-            this.Text = "『" + topic.Title + "』にばらまく";
+            this.Text = "『" + mTopic.Title + "』にばらまく";
+        }
+
+        public async void UpdateTopic(ResponseList responseList)
+        {
+            if (mIsScattering)
+                return;
+
+            mTopic = responseList.Topic;
+            mResponseList = responseList;
+            var result = await mApi.FetchResponseListAsync(mTopic.Id, 1, 1000, 1, mTopic.Modified);
+            if (result != null)
+            {
+                if (result.Status == 0)
+                    MessageBox.Show(result.Error, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                else if (result.Status != 2)
+                {
+                    mTopic = result.Topic;
+                    mResponseList = result;
+                }
+            }
+
+            checkBox4.Enabled = mTopic.ShowHost != 0;
+            this.Text = "『" + mTopic.Title + "』にばらまく";
         }
 
         private async void ScatterMonaDialog_Load(object sender, EventArgs e)
         {
-            mResponseList = await mApi.FetchResponseListAsync(mTopic.Id);
+            var responseList = await mApi.FetchResponseListAsync(mTopic.Id, 1, 1000, 1, mTopic.Modified);
+            if (responseList != null)
+            {
+                if (responseList.Status == 0)
+                    MessageBox.Show(responseList.Error, "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                else if (responseList.Status != 2)
+                {
+                    mTopic = responseList.Topic;
+                    mResponseList = responseList;
+                }
+            }
             textBox2.Text = FilterResponseList(mResponseList.Responses).Count().ToString();
             timer1.Enabled = true;
 
@@ -87,6 +121,8 @@ namespace AskMonaViewer.Dialogs
             bool flag = true;
             int sage = checkBox1.Checked ? 1 : 0;
             int anonymous = checkBox2.Checked ? 1 : 0;
+            var target = (ulong)(numericUpDown4.Value * 100000000);
+            var watanabe = (ulong)(numericUpDown1.Value * 100000000);
             var responseList = FilterResponseList(mResponseList.Responses);
             mIsScattering = true;
             button1.Enabled = false;
@@ -94,12 +130,12 @@ namespace AskMonaViewer.Dialogs
 
             foreach (var response in responseList)
             {
-                ulong value = (ulong)(numericUpDown1.Value * 100000000);
+                ulong value = watanabe;
                 if (checkBox5.Checked)
                 {
-                    var receive = double.Parse(response.Receive) / 100000000;
-                    if (receive < (double)numericUpDown4.Value)
-                        value = (ulong)(((double)numericUpDown4.Value - receive) * 100000000);
+                    var receive = ulong.Parse(response.Receive);
+                    if (receive < target)
+                        value = target - receive;
                 }
 
                 if (value == 0)
@@ -143,34 +179,37 @@ namespace AskMonaViewer.Dialogs
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            double value, balance;
-            double.TryParse(numericUpDown1.Text, out value);
-            double.TryParse(textBox4.Text, out balance);
+            double.TryParse(numericUpDown1.Text, out double value);
+            double.TryParse(textBox4.Text, out double balance);
+            double.TryParse(numericUpDown4.Text, out double targetMona);
             var responseList = FilterResponseList(mResponseList.Responses);
 
             int count = 0;
-            double sumValue = 0;
+            double sumMona = 0;
             if (checkBox5.Checked)
             {
+                ulong sumWatanabe = 0;
                 foreach (var response in responseList)
                 {
-                    var receive = double.Parse(response.Receive) / 100000000;
-                    if (receive < (double)numericUpDown4.Value)
+                    var receive = ulong.Parse(response.Receive);
+                    var target = (ulong)(targetMona * 100000000);
+                    if (receive < target)
                     {
-                        sumValue += (double)numericUpDown4.Value - receive;
+                        sumWatanabe += target - receive;
                         count++;
                     }
                 }
+                sumMona = (double)sumWatanabe / 100000000;
             }
             else
             {
                 count = responseList.Count();
-                sumValue = value * count;
+                sumMona = value * count;
             }
 
-            textBox1.Text = sumValue.ToString("F8");
+            textBox1.Text = sumMona.ToString("F8");
             textBox2.Text = count.ToString();
-            button1.Enabled = sumValue > 0 && balance >= sumValue && !mIsScattering;
+            button1.Enabled = sumMona > 0 && balance >= sumMona && !mIsScattering;
         }
 
         private void button5_Click(object sender, EventArgs e)

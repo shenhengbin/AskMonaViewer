@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Windows.Forms;
 
 using AskMonaWrapper;
+using AskMonaViewer.Settings;
 using AskMonaViewer.Utilities;
 
 namespace AskMonaViewer.Dialogs
@@ -13,15 +14,23 @@ namespace AskMonaViewer.Dialogs
     {
         private MainForm mParent;
         private AskMonaApi mApi;
+        private ApplicationSettings mSettings;
         private ListViewItemComparer mListViewItemSorterDW;
         private ListViewItemComparer mListViewItemSorterRS;
-        private ViewMessagesDialog mViewMessageDialog = null;
+        private ViewMessagesDialog mViewMessagesDialog = null;
+        private ViewProfileDialog mViewProfileDialog = null;
 
-        public ViewTransactionsDialog(MainForm parent, AskMonaApi api)
+        public ApplicationSettings Settings
+        {
+            get { return mSettings; }
+        }
+
+        public ViewTransactionsDialog(MainForm parent, AskMonaApi api, ApplicationSettings settings)
         {
             InitializeComponent();
             mParent = parent;
             mApi = api;
+            mSettings = settings;
             mListViewItemSorterDW = new ListViewItemComparer();
             mListViewItemSorterDW.SortOrder = SortOrder.Descending;
             mListViewItemSorterDW.ColumnModes = new ListViewItemComparer.ComparerMode[]
@@ -113,35 +122,56 @@ namespace AskMonaViewer.Dialogs
 
         private async void listViewEx2_DoubleClick(object sender, EventArgs e)
         {
+            var mousePosition = listViewEx2.PointToClient(Control.MousePosition);
+            var hit = listViewEx2.HitTest(mousePosition);
+            var columnIndex = hit.Item.SubItems.IndexOf(hit.SubItem);
+
             var tx = (Transaction)listViewEx2.SelectedItems[0].Tag;
-            if (tx.ResponceId == 0)
-                return;
-
-            var responseList = await mApi.FetchResponseListAsync(tx.TopicId, tx.ResponceId, tx.ResponceId, 1);
-            var html = await mParent.BuildWebBrowserDocument(responseList);
-            if (mViewMessageDialog == null)
+            if (columnIndex == 2 && tx.ResponceId != 0)
             {
-                mViewMessageDialog = new ViewMessagesDialog(html, tx.Message, responseList.Topic.Title);
-                mViewMessageDialog.LoadSettings(mParent.LoadViewMessageDialogSettings());
-                mViewMessageDialog.FormClosed += OnMessageViewFormClosed;
-                mViewMessageDialog.Show(this);
+                var responseList = await mApi.FetchResponseListAsync(tx.TopicId, tx.ResponceId, tx.ResponceId, 1);
+                var html = await mParent.BuildWebBrowserDocument(responseList);
+                if (mViewMessagesDialog != null)
+                    mViewMessagesDialog.Close();
+                mViewMessagesDialog = new ViewMessagesDialog(html, tx.Message, responseList.Topic.Title);
+                mViewMessagesDialog.LoadSettings(mSettings.ViewMessagesDialogSettings);
+                mViewMessagesDialog.FormClosed += OnViewMessagesDialogClosed;
+                mViewMessagesDialog.Show(this);
             }
-            else
-                mViewMessageDialog.UpdateMessage(html, tx.Message, responseList.Topic.Title);
+            else if (columnIndex == 3 && tx.User != null)
+            {
+                if (mViewProfileDialog != null)
+                    mViewProfileDialog.Close();
+                mViewProfileDialog = new ViewProfileDialog(mParent, mSettings.Options, mApi, tx.User.UserId);
+                mViewProfileDialog.LoadSettings(mSettings.ViewProfileDialogSettings);
+                mViewProfileDialog.FormClosed += OnViewProfileDialogClosed;
+                mViewProfileDialog.Show(this);
+                mSettings.ViewProfileDialogSettings = mViewProfileDialog.SaveSettings();
+            }
         }
 
-        private void OnMessageViewFormClosed(object sender, EventArgs e)
+        private void OnViewMessagesDialogClosed(object sender, EventArgs e)
         {
-            mParent.SaveViewMessageDialogSettings(mViewMessageDialog.SaveSettings());
-            mViewMessageDialog = null;
+            mSettings.ViewMessagesDialogSettings = mViewMessagesDialog.SaveSettings();
+            mViewMessagesDialog.Dispose();
+            mViewMessagesDialog = null;
         }
 
-        private void TransactionViewForm_FormClosed(object sender, FormClosedEventArgs e)
+        private void OnViewProfileDialogClosed(object sender, EventArgs e)
         {
-            if (mViewMessageDialog == null)
-                return;
+            mSettings.ViewProfileDialogSettings = mViewProfileDialog.SaveSettings();
+            mViewProfileDialog.Dispose();
+            mViewProfileDialog = null;
+        }
 
-            mViewMessageDialog.Close();
+        private void ViewTransactionsDialog_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            if (mViewMessagesDialog != null)
+                mViewMessagesDialog.Close();
+            if (mViewProfileDialog != null)
+                mViewProfileDialog.Close();
+
+            return;
         }
     }
 }
