@@ -573,7 +573,7 @@ namespace AskMonaViewer
                 catch { }
             }
 
-            if (File.Exists("ResponseCache.bin"))
+            if (File.Exists(mAppDataFolder + "ResponseCache.bin"))
             {
                 var serializer = new DataContractSerializer(typeof(List<ResponseList>));
                 using (var fs = new FileStream(mAppDataFolder + "ResponseCache.bin", FileMode.Open, FileAccess.Read))
